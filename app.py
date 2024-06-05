@@ -1,70 +1,58 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, classification_report
 
-# Title of the app
-st.title('Credit Card Fraud Detection')
+# Load the dataset
+def load_data():
+    df = pd.read_csv('./creditcard.csv')  # Replace with your dataset path
+    return df
 
-# Section to upload the dataset
-st.header('Upload Dataset')
-uploaded_file = st.file_uploader("./creditcard.csv", type="csv")
+# Train model
+def train_model(df):
+    X = df.drop('Class', axis=1)
+    y = df['Class']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    
+    return y_test, y_pred
 
-if uploaded_file is not None:
-    # Load the dataset
-    credit_card_data = pd.read_csv(uploaded_file)
+# Main Streamlit App
+def main():
+    st.title('Credit Card Fraud Detection')
     
-    # Display dataset information
-    st.header('Dataset Information')
-    st.write(credit_card_data.head())
-    st.write(credit_card_data.tail())
-    st.write(credit_card_data.info())
+    # Load data
+    df = load_data()
     
-    # Checking the number of missing values in each column
-    st.subheader('Missing Values')
-    st.write(credit_card_data.isnull().sum())
+    # Show dataset
+    st.subheader('Dataset')
+    st.write(df.head())
     
-    # Distribution of legit transactions & fraudulent transactions
-    st.subheader('Class Distribution')
-    st.write(credit_card_data['Class'].value_counts())
+    # Train model and get predictions
+    y_test, y_pred = train_model(df)
     
-    # Data preprocessing
-    st.header('Data Preprocessing')
-    legit = credit_card_data[credit_card_data.Class == 0]
-    fraud = credit_card_data[credit_card_data.Class == 1]
+    # Show metrics
+    st.subheader('Confusion Matrix')
+    cm = confusion_matrix(y_test, y_pred)
+    fig, ax = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt="d", ax=ax)
+    st.pyplot(fig)
     
-    st.write('Legit transactions:', legit.shape)
-    st.write('Fraudulent transactions:', fraud.shape)
+    st.subheader('Classification Report')
+    report = classification_report(y_test, y_pred, output_dict=True)
+    st.write(report)
     
-    # Under-sampling
-    st.subheader('Under-Sampling')
-    legit_sample = legit.sample(n=492)
-    new_dataset = pd.concat([legit_sample, fraud], axis=0)
-    st.write(new_dataset['Class'].value_counts())
-    
-    # Splitting the data into Features & Targets
-    X = new_dataset.drop(columns='Class', axis=1)
-    Y = new_dataset['Class']
-    
-    # Split the data into Training data & Testing Data
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, stratify=Y, random_state=2)
-    
-    st.write('Training data shape:', X_train.shape)
-    st.write('Testing data shape:', X_test.shape)
-    
-    # Model Training
-    st.header('Model Training')
-    model = LogisticRegression()
-    model.fit(X_train, Y_train)
-    
-    # Model Evaluation
-    st.header('Model Evaluation')
-    X_train_prediction = model.predict(X_train)
-    training_data_accuracy = accuracy_score(X_train_prediction, Y_train)
-    st.write('Accuracy on Training data:', training_data_accuracy)
-    
-    X_test_prediction = model.predict(X_test)
-    test_data_accuracy = accuracy_score(X_test_prediction, Y_test)
-    st.write('Accuracy score on Test Data:', test_data_accuracy)
+    # Additional visualization
+    st.subheader('Data Distribution')
+    fig, ax = plt.subplots()
+    sns.countplot(x='Class', data=df, ax=ax)
+    st.pyplot(fig)
+
+if __name__ == '__main__':
+    main()
